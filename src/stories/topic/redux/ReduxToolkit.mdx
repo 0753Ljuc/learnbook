@@ -1,0 +1,207 @@
+import { Meta } from "@storybook/blocks";
+import { Counter } from "../../../features/counter/Counter";
+import { Provider } from 'react-redux'
+import store from "../../../redux/store_devtools.ts"
+import { DevToolsSwitch } from "../../../container/Devtools.tsx"
+import { AccordionDetails, AccordionSummary, Accordion, Typography, } from '@mui/material';
+import { StyledPaper } from "./styled.components.ts"
+
+
+
+<Meta title="Topic/Redux/Redux Toolkit" />
+
+
+### Redux Toolkit
+> Redux Toolkit (also known as "RTK" for short) is our official recommended approach for writing Redux logic. 
+The @reduxjs/toolkit package wraps around the core redux package, 
+and contains API methods and common dependencies that we think are essential for building a Redux app. 
+Redux Toolkit builds in our suggested best practices, simplifies most Redux tasks, 
+prevents common mistakes, and makes it easier to write Redux applications.
+
+<br />
+#### Configure Store
+An simple example of defining **store** and exporting two specific types: `state` and `dispatch`.
+```tsx
+// redux/store.ts
+import { configureStore } from '@reduxjs/toolkit'
+import counterSlice from './counter/counterSlice'
+
+const store = configureStore({
+    reducer: {
+        counter: counterSlice,
+    }
+})
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+export type AppDispatch = typeof store.dispatch
+
+export default store
+```
+<br />
+
+Define **typed hook** which can help to infer your state implictly:  
+```ts
+
+// redux/hook.ts
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
+import type { RootState, AppDispatch } from './store'
+
+// Use throughout your app instead of plain `useDispatch` and `useSelector`
+export const useAppDispatch: () => AppDispatch = useDispatch
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
+
+```
+<br />
+
+
+#### Create Slice
+
+By defining **slice** with `createSlice`, we don't need to define action anymore as the slice will create `actions` automatically.
+
+```tsx
+
+// redux/counter/counterSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+
+// Define a type for the slice state
+export interface CounterState {
+  value: number
+}
+
+// Define the initial state using that type
+const initialState: CounterState = {
+  value: 0
+}
+
+export const counterSlice = createSlice({
+  name: 'counter',
+  // `createSlice` will infer the state type from the `initialState` argument
+  initialState,
+  reducers: {
+    increment: state => {
+      state.value += 1
+    },
+    decrement: state => {
+      state.value -= 1
+    },
+    // Use the PayloadAction type to declare the contents of `action.payload`
+    incrementByAmount: (state, action: PayloadAction<number>) => {
+      state.value += action.payload
+    }
+  }
+})
+
+export const { increment, decrement, incrementByAmount } = counterSlice.actions
+export default counterSlice.reducer
+
+``` 
+
+Let's see what is the definition of slice:
+
+```ts
+
+export interface Slice<State = any, CaseReducers extends SliceCaseReducers<State> = SliceCaseReducers<State>, Name extends string = string, ReducerPath extends string = Name, Selectors extends SliceSelectors<State> = SliceSelectors<State>> {
+    /**
+     * The slice name.
+     */
+    name: Name;
+    /**
+     *  The slice reducer path.
+     */
+    reducerPath: ReducerPath;
+    /**
+     * The slice's reducer.
+     */
+    reducer: Reducer<State>;
+    /**
+     * Action creators for the types of actions that are handled by the slice
+     * reducer.
+     */
+    actions: CaseReducerActions<CaseReducers, Name>;
+    /**
+     * The individual case reducer functions that were passed in the `reducers` parameter.
+     * This enables reuse and testing if they were defined inline when calling `createSlice`.
+     */
+    caseReducers: SliceDefinedCaseReducers<CaseReducers>;
+    /**
+     * Provides access to the initial state value given to the slice.
+     * If a lazy state initializer was provided, it will be called and a fresh value returned.
+     */
+    getInitialState: () => State;
+    /**
+     * Get localised slice selectors (expects to be called with *just* the slice's state as the first parameter)
+     */
+    getSelectors(): Id<SliceDefinedSelectors<State, Selectors, State>>;
+    /**
+     * Get globalised slice selectors (`selectState` callback is expected to receive first parameter and return slice state)
+     */
+    getSelectors<RootState>(selectState: (rootState: RootState) => State): Id<SliceDefinedSelectors<State, Selectors, RootState>>;
+    /**
+     * Selectors that assume the slice's state is `rootState[slice.reducerPath]` (which is usually the case)
+     *
+     * Equivalent to `slice.getSelectors((state: RootState) => state[slice.reducerPath])`.
+     */
+    get selectors(): Id<SliceDefinedSelectors<State, Selectors, {
+        [K in ReducerPath]: State;
+    }>>;
+    
+``` 
+
+Apparently we can see that the slice has properties `actions` and `reducer` which we going to export, and each action name was combined by slice's name and each reducer's name.
+
+<br />
+### An Counter Example
+Now let's create a simple counter to utilize this store: 
+
+```tsx
+export function Counter() {
+    // The `state` arg is correctly typed as `RootState` already
+    const count = useAppSelector(state => state.counter.value)
+    const dispatch = useAppDispatch()
+
+    return <div>
+        <h4>counter: {count}</h4>
+        <StyledButton onClick={() => dispatch(increment())}>+</StyledButton>
+        <StyledButton onClick={() => dispatch(decrement())}>-</StyledButton>
+    </div>
+}
+```
+
+**Render:**
+<Provider store={store} >
+  <StyledPaper>
+    <Counter />
+    </ StyledPaper>
+  <DevToolsSwitch />
+</ Provider> 
+
+
+
+
+ 
+<br />
+<br />
+<br />
+
+
+<Accordion disableGutters={true}>
+  <AccordionSummary   >
+  <Typography sx={{padding:0, margin:0}}>
+  **Q**: 
+    What's the difference between slice's name `counter` and reducer's `counter`, how if there are different? 
+  </Typography>
+   
+  </AccordionSummary>
+  <AccordionDetails>
+    **A**: slice's `counter` used for action name, reducer's `counter` used for store.state name.
+  </AccordionDetails>
+</Accordion>
+
+ 
+
+<br />
+<br />
+
+ 

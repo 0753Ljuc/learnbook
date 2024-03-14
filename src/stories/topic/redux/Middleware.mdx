@@ -1,0 +1,221 @@
+
+import { Meta } from "@storybook/blocks";            
+import Alert from '@mui/material/Alert';
+import { Diagram, StyledPaper } from "./styled.components.ts"
+import store from "../../../redux/store_alerter.ts"
+import { Provider } from 'react-redux'
+import { Counter } from "../../../features/counter/Counter";
+import ReduxAsyncDataFlowDiagram from "./assets/ReduxAsyncDataFlowDiagram-d97ff38a0f4da0f327163170ccc13e80.gif"
+
+
+<Meta title="Topic/Redux/Middleware" />
+
+
+### Side effect
+
+> Redux reducers must never contain "side effects". 
+**A "side effect" is any change to state or behavior that can be seen outside of returning a value from a function**.
+<br />
+
+Some common kinds of side effects are things like:
+<StyledPaper>
+ * Logging a value to the console
+ * Saving a file
+ * Setting an async timer
+ * Making an AJAX HTTP request
+ * Modifying some state that exists outside of a function, or mutating arguments to a function
+ * Generating random numbers or unique random IDs (such as Math.random() or Date.now())
+</ StyledPaper>
+
+
+<br />
+
+### Middleware 
+Redux middleware were designed to enable writing logic that has side effects.
+> A `middleware` is a higher-order function that **composes a dispatch function to return a new dispatch function**. It often turns `async actions` into actions.
+
+
+#### Definition 
+
+```ts
+type MiddlewareAPI = { dispatch: Dispatch, getState: () => State };
+type Middleware = (api: MiddlewareAPI) => (next: Dispatch) => Dispatch;
+```
+
+<br />
+
+### Make A Middleware
+
+So, the middleware signature is `({ getState, dispatch }) => next => action`, Let's try to create a logger middleware: 
+```ts
+import { Middleware } from "@reduxjs/toolkit"
+
+const alerter: Middleware = ({ getState }) => next => action => {
+    alert('will dispatch: ' + JSON.stringify(action))
+
+    // Call the next dispatch method in the middleware chain.
+    const returnValue = next(action)
+
+    alert('state after dispatch: ' + JSON.stringify(getState()))
+
+    // This will likely be the action itself, unless a middleware further in chain changed it.
+    return returnValue
+}
+
+export default alerter
+``` 
+
+
+#### usage
+
+> `applyMiddleware` will create a store enhancer that applies middleware to the dispatch method of the Redux store. 
+
+**in legacy redux**:
+```ts
+const store = createStore(
+    reducer,
+    preloadedState,
+    applyMiddleware(alerter)
+)
+```
+
+**in redux RTK**:
+```ts
+const store = configureStore({
+    reducer,
+    middleware: (getDefailtMiddlewares) => getDefailtMiddlewares().concat(alerter)
+})
+```
+
+**Render**:
+<Provider store={store} >
+  <StyledPaper>
+    <Counter />
+  </ StyledPaper>
+</ Provider> 
+
+
+<br />
+<br />
+
+### Source Code
+
+Let's check the source code of `applyMiddleware`: 
+```ts
+function applyMiddleware(...middlewares) {
+  return (createStore2) => (reducer, preloadedState) => {
+    const store = createStore2(reducer, preloadedState);
+
+    // prevent dispatch function call while chain not yet create.
+    let dispatch = () => {
+      throw new Error(process.env.NODE_ENV === "production" ? formatProdErrorMessage(15) : "Dispatching while constructing your middleware is not allowed. Other middleware would not be applied to this dispatch.");
+    };
+    const middlewareAPI = {
+      getState: store.getState,
+      dispatch: (action, ...args) => dispatch(action, ...args)
+    };
+    const chain = middlewares.map((middleware) => middleware(middlewareAPI));
+    dispatch = compose(...chain)(store.dispatch);
+    return {
+      ...store,
+      dispatch
+    };
+  };
+}
+
+```
+
+`compose`: 
+```ts 
+function compose(...middlewares) {
+  return arg => middlewares.reduceRight((composed, fn) => fn(composed), arg);
+}
+```
+
+> The last middleware in the chain will receive the real store's dispatch method as the next parameter, thus ending the chain
+
+So we can understand the final dispatch we got is look like below:
+
+```ts 
+dispatch = compose(md1,md2,md3)(store.dispatch);
+// equal: 
+dispatch = fn1(fn2(fn3(store.dispatch))));
+```
+
+<Alert severity="info" icon={<></>}>
+Now we don't need to use `applyMiddleware` as RTK already integrated in `configStore`.
+</Alert>
+
+<br />
+### Thunk
+> **Thunk** is a programming term that means "a piece of code that does some delayed work", 
+thunks allow us to write additional Redux-related logic separate from a UI layer
+
+#### thunkMiddleware implement
+
+```ts 
+const thunkMiddleware =
+  ({ dispatch, getState }) =>
+  next =>
+  action => {
+    // If the "action" is actually a function instead...
+    if (typeof action === 'function') {
+      // then call the function and pass `dispatch` and `getState` as arguments
+      return action(dispatch, getState)
+    }
+
+    // Otherwise, it's a normal action - send it onwards
+    return next(action)
+  }
+```
+
+#### how to use a thunk function 
+A thunk function is a function that accepts two arguments: the Redux store `dispatch` method, and the Redux store `getState` method.
+```ts 
+const thunkFunction = (dispatch, getState) => {
+  // logic here that can dispatch actions or read state
+}
+
+store.dispatch(thunkFunction)
+```
+
+#### thunk action creator
+So base on the thunkFunction boilerplate, 
+we can write a `thunk action creator` which is typically closes over any arguments passed to the action creator.
+```ts
+export const fetchTodoById = (todoId: number) => async (dispatch: AppDispatch) => {
+    const res = await fakeFetchTodoById(todoId)
+    dispatch(updateTodo(res.todo))
+}
+```
+
+#### enable thunk in RTK
+We can apply thunk middleware in RTK like below:
+```ts
+const store = configureStore({
+    reducer: {
+        todo: todoSlice,
+    },
+    middleware: (getDefailtMiddlewares) => {
+        return getDefailtMiddlewares({
+            thunk: true
+        })
+    },
+})
+```
+
+<br />
+
+
+#### Redux Async Data Flow 
+<Diagram src={ReduxAsyncDataFlowDiagram} />
+
+ 
+<br />
+
+#### Store enhancer 
+A store enhancer is a higher-order function that `composes` a store creator to return a new enhanced store creator. 
+It is similar with middleware, and most likely you'll never write a store enhancer.
+```ts 
+type StoreEnhancer = (next: StoreCreator) => StoreCreator
+```

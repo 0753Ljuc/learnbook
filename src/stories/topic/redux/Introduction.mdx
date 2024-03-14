@@ -1,0 +1,169 @@
+import { Meta } from "@storybook/blocks";
+import ReduxDataFlowDiagram from "./assets/ReduxDataFlowDiagram-49fa8c3968371d9ef6f2a1486bd40a26.gif"
+import OneWayDataFlow from "./assets/one-way-data-flow-04fe46332c1ccb3497ecb04b94e55b97.png"
+import { Diagram } from "./styled.components.ts"
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import ReduxOrg from "./assets/redux.js.org_.png"
+
+
+
+<Meta title="Topic/Redux/Introduction" />
+
+## Redux 
+Redux itself is a standalone library that can be used with any UI layer or framework, including React, Angular, Vue, Ember, and vanilla JS. Although Redux and React are commonly used together, they are independent of each other.
+
+### Definition
+Redux is **A Predictable State Container for JS Apps**, before get started, let's see the definition of redux:  
+<Diagram src={ReduxOrg} size="full" />
+<br />
+
+### one-way data flow
+
+First, let's look into a small React counter example of **one-way data flow**. 
+
+```tsx
+function Counter() {
+  // State: a counter value
+  const [counter, setCounter] = useState(0)
+
+  // Action: code that causes an update to the state when something happens
+  const increment = () => {
+    setCounter(prevCounter => prevCounter + 1)
+  }
+
+  // View: the UI definition
+  return (
+    <div>
+      Value: {counter} <button onClick={increment}>Increment</button>
+    </div>
+  )
+}
+```
+
+> * The **state**, the source of truth that drives our app;
+> * The **view**, a declarative description of the UI based on the current state
+> * The **actions**, the events that occur in the app based on user input, and trigger updates in the state 
+
+<Diagram src={OneWayDataFlow}  />
+<br />
+<br />
+<br />
+
+<Alert severity="info" icon={<></>}>
+👉🏻 However, the simplicity can break down when we have **multiple components** that need to share and **use the same state**,
+especially if those components are **located in different parts** of the application.
+</Alert>
+
+
+<br />
+<br />
+<br />
+
+
+**Redux** a single centralized place to contain the global state in your application, 
+and specific patterns to follow when updating that state to make the code predictable. 
+It can help you easier to maintain a **increasingly complicated** app, 
+**avoid losting control** over the when, why, and how of its state.
+
+### Redux Application Data Flow Diagram
+<Diagram src={ReduxDataFlowDiagram}  />
+<br />
+<br />
+<br />
+
+
+In order to understand the Diagram, you are better to be familar with below concept:
+#### Action
+> An **action** is a plain JavaScript object that has a `type` field and a `payload` field. 
+**You can think of an action as an event that describes something that happened in the application**.
+We usually write that type string like `domain/eventName`
+
+```ts 
+const addTodoAction = {
+  type: 'todos/todoAdded',
+  payload: 'Buy milk'
+}
+```
+
+#### Action Creators
+> An **action creator** is a function that creates and returns an action object. 
+We typically use these so we don't have to write the action object by hand every time:
+
+```ts
+const addTodo = text => {
+  return {
+    type: 'todos/todoAdded',
+    payload: text
+  }
+}
+```
+
+#### Reducers
+> A **reducer** is a function that receives the current `state` and an `action` object, 
+decides how to update the state if necessary, and returns the new state: `(state, action) => newState`. 
+**You can think of a reducer as an event listener which handles events based on the received action (event) type**.
+
+```ts
+const initialState = { value: 0 }
+
+function counterReducer(state = initialState, action) {
+  if (action.type === 'counter/increment') {
+    return {
+      ...state,
+      value: state.value + 1
+    }
+  }
+  return state
+}
+```
+
+#### Store
+> The current Redux application state lives in an object called the **store** .
+
+```ts
+import { configureStore } from '@reduxjs/toolkit'
+const store = configureStore({ reducer: counterReducer })
+console.log(store.getState())
+// {value: 0}
+```
+
+#### Dispatch
+> The Redux store has a method called `dispatch`. **The only way to update the state is to call `store.dispatch()` and pass in an action object**.
+and we can call `getState()` to retrieve the updated value 
+```ts
+const increment = () => {
+  return {
+    type: 'counter/increment'
+  }
+}
+
+store.dispatch(increment())
+console.log(store.getState())
+// {value: 1}
+```
+
+#### Selectors
+> **Selectors** are functions that know how to extract specific pieces of information from a store state value.
+```tsx
+const selectCounterValue = state => state.value
+const currentValue = selectCounterValue(store.getState())
+console.log(currentValue)
+// 1
+```
+
+<br />
+
+
+### Principle 
+Redux can be described in three fundamental principles:
+
+#### Single source of truth
+> The global state of your application is stored in an object tree within a single store.
+
+#### State is read-only
+> The only way to change the state is to emit an action, an object describing what happened.
+
+#### Changes are made with pure functions
+> To specify how the state tree is transformed by actions, you write pure reducers.
+
