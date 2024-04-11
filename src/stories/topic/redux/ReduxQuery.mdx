@@ -1,0 +1,283 @@
+
+import { Meta, Canvas } from "@storybook/blocks";                                                             
+import { SyntaxHighlighter } from "~/components/SyntaxHighlighter"
+import Alert from '@mui/material/Alert';
+import { PostsManager } from "~/examples/query/features/PostsManager";
+import { withDevtools } from "~/examples/query/app/withStoreProvider"
+import { _sourceCode as queryApiSourceCode } from "~/examples/query/app/services/api.ts"
+import { _sourceCode as queryStoreSourceCode } from "~/examples/query/app/store.ts"
+import { _sourceCode as postsManagerSourceCode } from "~/examples/query/features/PostsManager/PostsManager"
+import { _sourceCode as addPostSourceCode } from "~/examples/query/features/PostsManager/AddPost"
+import { _sourceCode as postListSourceCode } from "~/examples/query/features/PostsManager/PostList"
+import { _sourceCode as postListItemSourceCode } from "~/examples/query/features/PostsManager/PostListItem"
+import { _sourceCode as editableSourceCode } from "~/examples/query/features/PostsManager/Editable"
+import { CustomCode } from "~/components/CustomCode"
+import { ReduxQueryFlowStepper } from "~/components/ReduxQueryFlowStepper"
+import { withWorker } from "~/HOC/withWorker"
+import { Diagram } from "./styled.components.tsx"
+import QABox from "~/components/QABox"
+
+
+<Meta title="Topic/Redux/Redux Query" />
+
+
+### RTK Query
+
+**RTK Query** is a powerful data fetching and caching tool. 
+It is designed to simplify common cases for loading data in a web application, 
+**eliminating the need to hand-write data fetching & caching logic yourself**.
+
+RTK Query is **an optional addon included in the Redux Toolkit package**, 
+and its functionality is built on top of the other APIs in Redux Toolkit.
+
+ 
+
+<br />
+RTK Query includes these APIs:
+* `createApi()`: The core of RTK Query's functionality. It allows you to define a set of "endpoints" that describe how to retrieve data from backend APIs and other async sources, including the configuration of how to fetch and transform that data. In most cases, you should use this once per app, with "one API slice per base URL" as a rule of thumb.
+* `fetchBaseQuery()`: A small wrapper around fetch that aims to simplify requests. Intended as the recommended baseQuery to be used in createApi for the majority of users.
+* `<ApiProvider />`: Can be used as a Provider if you do not already have a Redux store.
+* `setupListeners()`: A utility used to enable refetchOnMount and refetchOnReconnect behaviors.
+RTK Query itself is built on top of the Redux Toolkit core, 
+and leverages RTK's APIs like `createSlice` and `createAsyncThunk` to implement its capabilities.
+
+<br />
+<br />
+
+ 
+#### Workflow
+click on each step to see the description.
+<ReduxQueryFlowStepper />
+
+<br />
+<br />
+#### Post Example
+
+First, we need to define api by `createApi()` which accept a single configuration object parameter:
+<details>
+  <summary>check the definition of single configuration object</summary>
+```ts
+  baseQuery(args: InternalQueryArgs, api: BaseQueryApi, extraOptions?: DefinitionExtraOptions): any;
+  endpoints(build: EndpointBuilder<InternalQueryArgs, TagTypes>): Definitions;
+  extractRehydrationInfo?: (
+    action: UnknownAction,
+    { reducerPath }: { reducerPath: ReducerPath }
+  ) =>
+    | undefined
+    | CombinedState<Definitions, TagTypes, ReducerPath>
+  tagTypes?: readonly TagTypes[];
+  reducerPath?: ReducerPath;
+  serializeQueryArgs?: SerializeQueryArgs<InternalQueryArgs>;
+  keepUnusedDataFor?: number; // value is in seconds
+  refetchOnMountOrArgChange?: boolean | number; // value is in seconds
+  refetchOnFocus?: boolean;
+  refetchOnReconnect?: boolean;
+```
+</details>
+<br />
+
+<SyntaxHighlighter schema={[{ "services/api.ts": queryApiSourceCode }]} /> 
+<br />
+
+Then use `configureStore()` to create a store, put those `api.reducer` into `reducer`:
+<SyntaxHighlighter schema={[{ "store.ts": queryStoreSourceCode }]} /> 
+<br /> 
+
+by wrapping with the store provider, we render an Post component defined by below:
+<SyntaxHighlighter schema={[
+      { "PostsManager.tsx": postsManagerSourceCode },
+      { "AddPost.tsx": addPostSourceCode },
+      { "PostList.tsx": postListSourceCode },
+      { "PostListItem.tsx": postListItemSourceCode },
+      { "Editable.tsx": editableSourceCode },
+    ]} /> 
+
+
+**Render**:
+<Canvas>
+   {withWorker(withDevtools(PostsManager))()}
+ </ Canvas>
+
+<Alert severity="info" icon={<></>}>
+When performing an mutation action, if its `invalidatesTags` indicates some tags, 
+correspondingly the query which same tag in `providesTags` will automated refetch. 
+</Alert>
+
+<br />
+
+#### Tag
+<QABox>
+  <QABox.Question> 
+    What does `tagTypes`, `providesTags`, `invalidatesTags` do? 
+  </ QABox.Question>
+  <QABox.Answer> 
+  * `tagTypes` provide the scope that providesTags and invalidatesTags can use when configuring endpoints.
+  * `providesTags` Used by query endpoints. Determines which 'tag' is attached to the cached data returned by the query. 
+Expects an array of tag type strings, an array of objects of tag types with ids, 
+or a function that returns such an array.
+  * `invalidatesTags` Used by mutation endpoints. 
+Determines which cached data should be either re-fetched or removed from the cache. 
+Expects the same shapes as providesTags.
+  </ QABox.Answer>
+</ QABox>
+
+<br />
+
+
+#### Cache
+When a request is attempted, 
+if the data already exists in the cache, then that data is served and no new request is sent to the server.
+
+The caching is base on:
+* API endpoint definitions
+* The serialized query parameters used when components subscribe to data from an endpoint
+* Active subscription reference counts
+
+When a subscription is started, 
+the parameters used with the endpoint are serialized and stored internally as a `queryCacheKey` for the request.
+
+
+```ts
+// serialize to  a queryCacheKey_A, reference-counted is 1
+const { data } = useGetUserQuery(1) 
+
+// reuse the queryCacheKey_A, reference-counted is 2
+const { data:data2 } = useGetUserQuery(1) 
+
+// serialize to queryCacheKey_B, reference-counted is 1
+const { data:data3 } = useGetUserQuery(2) 
+```
+
+Subscriptions are reference-counted, 
+Once all of the subscriptions are removed (e.g. when last component subscribed to the data unmounts), 
+after an amount of time (default 60 seconds which configured by `keepUnusedDataFor`), the data will be removed from the cache.
+
+> RTK Query ensures that any component that subscribes to the same query will always use the same data. 
+
+
+#### Refetch
+Calling the refetch function will force refetch the associated query.
+
+**manual refetch**:
+```tsx
+  const { data, refetch } = useGetPostsQuery()
+  return <button onClick={refetch}>Force Refetch</button>
+```
+
+**automated refetch**: 
+
+RTK Query uses an optional [cache tag](#tag) system to automate re-fetching for query endpoints that have data affected by mutation endpoints.
+
+#### Signature
+
+<details>
+  <summary>check the signature of `useQuery`</summary>
+```ts
+type UseQuery = (
+  arg: any | SkipToken,
+  options?: UseQueryOptions,
+) => UseQueryResult
+
+type UseQueryOptions = {
+  pollingInterval?: number
+  skipPollingIfUnfocused?: boolean
+  refetchOnReconnect?: boolean
+  refetchOnFocus?: boolean
+  skip?: boolean
+  refetchOnMountOrArgChange?: boolean | number
+  selectFromResult?: (result: UseQueryStateDefaultResult) => any
+}
+
+type UseQueryResult<T> = {
+  // Base query state
+  originalArgs?: unknown // Arguments passed to the query
+  data?: T // The latest returned result regardless of hook arg, if present
+  currentData?: T // The latest returned result for the current hook arg, if present
+  error?: unknown // Error result if present
+  requestId?: string // A string generated by RTK Query
+  endpointName?: string // The name of the given endpoint for the query
+  startedTimeStamp?: number // Timestamp for when the query was initiated
+  fulfilledTimeStamp?: number // Timestamp for when the query was completed
+
+  // Derived request status booleans
+  isUninitialized: boolean // Query has not started yet.
+  isLoading: boolean // Query is currently loading for the first time. No data yet.
+  isFetching: boolean // Query is currently fetching, but might have data from an earlier request.
+  isSuccess: boolean // Query has data from a successful load.
+  isError: boolean // Query is currently in an "error" state.
+
+  refetch: () => QueryActionCreatorResult // A function to force refetch the query - returns a Promise with additional methods
+}
+```
+</details>
+
+<details>
+  <summary>check the signature of `useMutation`</summary>
+```ts
+type UseMutation = (
+  options?: UseMutationStateOptions,
+) => [UseMutationTrigger, UseMutationResult | SelectedUseMutationResult]
+
+type UseMutationStateOptions = {
+  // A method to determine the contents of `UseMutationResult`
+  selectFromResult?: (result: UseMutationStateDefaultResult) => any
+  // A string used to enable shared results across hook instances which have the same key
+  fixedCacheKey?: string
+}
+
+type UseMutationTrigger<T> = (arg: any) => Promise<
+  { data: T } | { error: BaseQueryError | SerializedError }
+> & {
+  requestId: string // A string generated by RTK Query
+  abort: () => void // A method to cancel the mutation promise
+  unwrap: () => Promise<T> // A method to unwrap the mutation call and provide the raw response/error
+  reset: () => void // A method to manually unsubscribe from the mutation call and reset the result to the uninitialized state
+}
+
+type UseMutationResult<T> = {
+  // Base query state
+  originalArgs?: unknown // Arguments passed to the latest mutation call. Not available if using the `fixedCacheKey` option
+  data?: T // Returned result if present
+  error?: unknown // Error result if present
+  endpointName?: string // The name of the given endpoint for the mutation
+  fulfilledTimestamp?: number // Timestamp for when the mutation was completed
+
+  // Derived request status booleans
+  isUninitialized: boolean // Mutation has not been fired yet
+  isLoading: boolean // Mutation has been fired and is awaiting a response
+  isSuccess: boolean // Mutation has data from a successful call
+  isError: boolean // Mutation is currently in an "error" state
+  startedTimeStamp?: number // Timestamp for when the latest mutation was initiated
+
+  reset: () => void // A method to manually unsubscribe from the mutation call and reset the result to the uninitialized state
+}
+```
+</details>
+
+<br />
+
+
+#### Q & A
+<QABox>
+  <QABox.Question> 
+    If two separate endpoints provide the same tags, what will happen?
+  </ QABox.Question>
+  <QABox.Answer> 
+    they will still contribute their own distinct cached data as their queryCacheKey are unique, 
+    but both can be invalidated by a single tag declared from a mutation. 
+  </ QABox.Answer>
+</ QABox>
+ 
+
+
+<QABox>
+  <QABox.Question> 
+    by wrting `useGetPostQuery({id},{skip: !(id%2)})` with default state id is 1, 
+    what's ui behavior while id increasing to 3?
+  </ QABox.Question>
+  <QABox.Answer> 
+    * id = 1, ui show the query result of 1
+    * id = 2, ui no changed, reuse the last result (query result of 3)
+    * id = 3, ui show the query result of 3
+  </ QABox.Answer>
+</ QABox>

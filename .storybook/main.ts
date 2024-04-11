@@ -2,26 +2,24 @@ import type { StorybookConfig } from "@storybook/react-webpack5";
 import path from "path";
 
 const config: StorybookConfig = {
-  stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  stories: [
+    "../src/stories/**/*.mdx",
+    "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)",
+  ],
   addons: [
     "@storybook/addon-links",
     "@storybook/addon-essentials",
     "@storybook/preset-create-react-app",
     "@storybook/addon-onboarding",
     "@storybook/addon-interactions",
+    "@storybook/addon-storysource",
   ],
   typescript: {
+    check: false,
     reactDocgen: "react-docgen-typescript",
+    checkOptions: {},
     reactDocgenTypescriptOptions: {
-      compilerOptions: {
-        allowSyntheticDefaultImports: false,
-        esModuleInterop: false,
-      },
-      // Filter out third-party props from node_modules except @mui packages.
-      propFilter: (prop) =>
-        prop.parent
-          ? !/node_modules\/(?!@mui)/.test(prop.parent.fileName)
-          : true,
+      shouldExtractLiteralValuesFromEnum: true,
     },
   },
   webpackFinal: async (config) => {
@@ -40,9 +38,6 @@ const config: StorybookConfig = {
         useSWC: true,
       },
     },
-  },
-  docs: {
-    autodocs: "tag",
   },
   staticDirs: ["../public"],
 };

@@ -1,14 +1,15 @@
-import { Meta } from "@storybook/blocks";
-import { Counter } from "../../../features/counter/Counter";
-import { Provider } from 'react-redux'
-import store from "../../../redux/store_devtools.ts"
-import { DevToolsSwitch } from "../../../container/Devtools.tsx"
-import { AccordionDetails, AccordionSummary, Accordion, Typography, } from '@mui/material';
-import { StyledPaper } from "./styled.components.ts"
+import { Meta, Canvas, Story, Source } from "@storybook/blocks";
+import { _sourceCode as storeSourceCode } from "~/examples/counter/services/store"
+import { _sourceCode as storeHooksSourceCode } from "~/examples/counter/services/hooks"
+import { withDevtools } from "~/examples/counter/services/withStoreProvider"
+import { _sourceCode as counterSliceSourceCode } from "~/examples/counter/services/counterSlice"
+import { Counter, _sourceCode as counterSourceCode } from "~/examples/counter/features/Counter"
+import QABox from "~/components/QABox"
+import { SyntaxHighlighter } from "~/components/SyntaxHighlighter"
 
-
-
+ 
 <Meta title="Topic/Redux/Redux Toolkit" />
+
 
 
 ### Redux Toolkit
@@ -21,85 +22,24 @@ prevents common mistakes, and makes it easier to write Redux applications.
 <br />
 #### Configure Store
 An simple example of defining **store** and exporting two specific types: `state` and `dispatch`.
-```tsx
-// redux/store.ts
-import { configureStore } from '@reduxjs/toolkit'
-import counterSlice from './counter/counterSlice'
-
-const store = configureStore({
-    reducer: {
-        counter: counterSlice,
-    }
-})
-
-// Infer the `RootState` and `AppDispatch` types from the store itself
-export type RootState = ReturnType<typeof store.getState>
-// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
-export type AppDispatch = typeof store.dispatch
-
-export default store
-```
+<SyntaxHighlighter schema={[{"services/store.ts":storeSourceCode}]} />
 <br />
 
 Define **typed hook** which can help to infer your state implictly:  
-```ts
-
-// redux/hook.ts
-import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
-import type { RootState, AppDispatch } from './store'
-
-// Use throughout your app instead of plain `useDispatch` and `useSelector`
-export const useAppDispatch: () => AppDispatch = useDispatch
-export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
-
-```
+<SyntaxHighlighter schema={[{"services/hooks.ts":storeHooksSourceCode}]} />
 <br />
 
 
 #### Create Slice
 
 By defining **slice** with `createSlice`, we don't need to define action anymore as the slice will create `actions` automatically.
+ <SyntaxHighlighter schema={[{"services/counterSlice.ts":counterSliceSourceCode}]} />
 
-```tsx
+<br />
+<br />
 
-// redux/counter/counterSlice.ts
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-
-// Define a type for the slice state
-export interface CounterState {
-  value: number
-}
-
-// Define the initial state using that type
-const initialState: CounterState = {
-  value: 0
-}
-
-export const counterSlice = createSlice({
-  name: 'counter',
-  // `createSlice` will infer the state type from the `initialState` argument
-  initialState,
-  reducers: {
-    increment: state => {
-      state.value += 1
-    },
-    decrement: state => {
-      state.value -= 1
-    },
-    // Use the PayloadAction type to declare the contents of `action.payload`
-    incrementByAmount: (state, action: PayloadAction<number>) => {
-      state.value += action.payload
-    }
-  }
-})
-
-export const { increment, decrement, incrementByAmount } = counterSlice.actions
-export default counterSlice.reducer
-
-``` 
-
-Let's see what is the definition of slice:
-
+<details>
+<summary>**check the definition of slice**</summary>
 ```ts
 
 export interface Slice<State = any, CaseReducers extends SliceCaseReducers<State> = SliceCaseReducers<State>, Name extends string = string, ReducerPath extends string = Name, Selectors extends SliceSelectors<State> = SliceSelectors<State>> {
@@ -146,36 +86,29 @@ export interface Slice<State = any, CaseReducers extends SliceCaseReducers<State
     get selectors(): Id<SliceDefinedSelectors<State, Selectors, {
         [K in ReducerPath]: State;
     }>>;
-    
-``` 
-
-Apparently we can see that the slice has properties `actions` and `reducer` which we going to export, and each action name was combined by slice's name and each reducer's name.
-
-<br />
-### An Counter Example
-Now let's create a simple counter to utilize this store: 
-
-```tsx
-export function Counter() {
-    // The `state` arg is correctly typed as `RootState` already
-    const count = useAppSelector(state => state.counter.value)
-    const dispatch = useAppDispatch()
-
-    return <div>
-        <h4>counter: {count}</h4>
-        <StyledButton onClick={() => dispatch(increment())}>+</StyledButton>
-        <StyledButton onClick={() => dispatch(decrement())}>-</StyledButton>
-    </div>
 }
 ```
+Apparently we can see that the slice has properties `actions` and `reducer` which we going to export, and each action name was combined by slice's name and each reducer's name.
+
+</details>
+
+<br />
+### The Counter Example
+Now let's create a simple counter to utilize this store: 
+
+ 
+ 
+<SyntaxHighlighter schema={[
+  {"features/Counter.tsx" : counterSourceCode},
+  {"services/store.ts":storeSourceCode},
+  {"services/hooks.ts":storeHooksSourceCode},
+  {"services/counterSlice.ts":counterSliceSourceCode}
+]} />
 
 **Render:**
-<Provider store={store} >
-  <StyledPaper>
-    <Counter />
-    </ StyledPaper>
-  <DevToolsSwitch />
-</ Provider> 
+<Canvas  sourceState="none">
+  {withDevtools(Counter)()}
+</ Canvas>
 
 
 
@@ -185,23 +118,17 @@ export function Counter() {
 <br />
 <br />
 
-
-<Accordion disableGutters={true}>
-  <AccordionSummary   >
-  <Typography sx={{padding:0, margin:0}}>
-  **Q**: 
-    What's the difference between slice's name `counter` and reducer's `counter`, how if there are different? 
-  </Typography>
-   
-  </AccordionSummary>
-  <AccordionDetails>
-    **A**: slice's `counter` used for action name, reducer's `counter` used for store.state name.
-  </AccordionDetails>
-</Accordion>
-
  
 
-<br />
-<br />
-
+<QABox>
+  <QABox.Question> 
+    What's the difference between slice's name `counter` and reducer's `counter`, how if there are different?
+  </ QABox.Question>
+  <QABox.Answer> 
+    slice's `counter` used for action name, reducer's `counter` used for store.state name.
+  </ QABox.Answer>
+</ QABox>
  
+
+<br /> 
+

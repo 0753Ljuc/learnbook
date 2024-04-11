@@ -1,20 +1,26 @@
 import type { Preview } from "@storybook/react";
+import { CustomCode } from "../src/components/CustomCode";
 
 import "@fontsource/roboto/300.css";
 import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
-import "@fontsource/material-icons";
 
 const preview: Preview = {
   parameters: {
+    docs: {
+      components: {
+        code: CustomCode,
+      },
+    },
+
     options: {
       storySort: (a, b) => {
         const reduxTitleOrder = [
           "Topic/Redux/Introduction",
-          "Topic/Redux/React Redux",
           "Topic/Redux/Redux Toolkit",
           "Topic/Redux/Middleware",
+          "Topic/Redux/Redux Query",
         ];
         const orderA = reduxTitleOrder.indexOf(a.title);
         const orderB = reduxTitleOrder.indexOf(b.title);
