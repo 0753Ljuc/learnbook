@@ -12,7 +12,14 @@ const WorkerWrapper = ({ children }: PropsWithChildren) => {
 
   const onClick = () => {
     if (!runWorker) {
-      worker.start();
+      worker.start({
+        serviceWorker: {
+          url:
+            process.env.NODE_ENV === "production"
+              ? "/learnbook/mockServiceWorker.js"
+              : "/mockServiceWorker.js",
+        },
+      });
       setRunWorker(true);
     } else {
       worker.stop();
