@@ -1,11 +1,12 @@
 
-import { Meta } from "@storybook/blocks";            
+import { Meta, Source, Canvas } from "@storybook/blocks";                                                       
 import Alert from '@mui/material/Alert';
-import { Diagram, StyledPaper } from "./styled.components.ts"
-import store from "../../../redux/store_alerter.ts"
-import { Provider } from 'react-redux'
-import { Counter } from "../../../features/counter/Counter";
+import { Diagram, StyledPaper } from "./styled.components.tsx"
+import { _sourceCode as alerterSourceCode } from "~/examples/counter/services/middlewares/alerter"
+import { Counter } from "~/examples/counter/features/Counter"
 import ReduxAsyncDataFlowDiagram from "./assets/ReduxAsyncDataFlowDiagram-d97ff38a0f4da0f327163170ccc13e80.gif"
+import { withAlerter } from "~/examples/counter/services/withStoreProvider.tsx";
+import { CustomCode } from "~/components/CustomCode"
 
 
 <Meta title="Topic/Redux/Middleware" />
@@ -44,27 +45,11 @@ type Middleware = (api: MiddlewareAPI) => (next: Dispatch) => Dispatch;
 
 <br />
 
-### Make A Middleware
+#### Make A Middleware
 
 So, the middleware signature is `({ getState, dispatch }) => next => action`, Let's try to create a logger middleware: 
-```ts
-import { Middleware } from "@reduxjs/toolkit"
 
-const alerter: Middleware = ({ getState }) => next => action => {
-    alert('will dispatch: ' + JSON.stringify(action))
-
-    // Call the next dispatch method in the middleware chain.
-    const returnValue = next(action)
-
-    alert('state after dispatch: ' + JSON.stringify(getState()))
-
-    // This will likely be the action itself, unless a middleware further in chain changed it.
-    return returnValue
-}
-
-export default alerter
-``` 
-
+<CustomCode language="tsx">{alerterSourceCode}</CustomCode>
 
 #### usage
 
@@ -88,11 +73,9 @@ const store = configureStore({
 ```
 
 **Render**:
-<Provider store={store} >
-  <StyledPaper>
-    <Counter />
-  </ StyledPaper>
-</ Provider> 
+<Canvas>
+  {withAlerter(Counter)()}
+</ Canvas>
 
 
 <br />
@@ -179,6 +162,7 @@ const thunkFunction = (dispatch, getState) => {
 store.dispatch(thunkFunction)
 ```
 
+<br />
 #### thunk action creator
 So base on the thunkFunction boilerplate, 
 we can write a `thunk action creator` which is typically closes over any arguments passed to the action creator.
@@ -189,8 +173,10 @@ export const fetchTodoById = (todoId: number) => async (dispatch: AppDispatch) =
 }
 ```
 
-#### enable thunk in RTK
-We can apply thunk middleware in RTK like below:
+
+#### disable thunk
+The redux-thunk middleware was automatically added, 
+We can disable thunk middleware like below if we want
 ```ts
 const store = configureStore({
     reducer: {
@@ -198,11 +184,86 @@ const store = configureStore({
     },
     middleware: (getDefailtMiddlewares) => {
         return getDefailtMiddlewares({
-            thunk: true
+            thunk: false 
         })
     },
 })
 ```
+
+#### configureStore 
+Even though we use `configureStore` to create store instead of `createStore`, 
+it intrinsicly including the logic to handle reducers, middleware, enhancers..., this function looks
+```ts
+import { applyMiddleware, compose, createStore } from 'redux'
+import thunkMiddleware from 'redux-thunk'
+
+import monitorReducersEnhancer from './enhancers/monitorReducers'
+import loggerMiddleware from './middleware/logger'
+import rootReducer from './reducers'
+
+export default function configureStore(preloadedState) {
+  const middlewares = [loggerMiddleware, thunkMiddleware]
+  const middlewareEnhancer = applyMiddleware(...middlewares)
+
+  const enhancers = [middlewareEnhancer, monitorReducersEnhancer]
+  const composedEnhancers = compose(...enhancers)
+
+  const store = createStore(rootReducer, preloadedState, composedEnhancers)
+
+  return store
+}
+ 
+ ```
+
+<br />
+#### `createAsyncThunk`
+
+We can also use `createAsyncThunk` to make a thunk creator. 
+it will automatically dispatch pending, fulfilled, and rejected action types based on the promise resolution status.
+<details>
+<summary>check the thunkApi manually typing</summary>
+```ts
+// We can make this function more intelligent by explicitly declare the type of below properties
+type AsyncThunkConfig = {
+  /** return type for `thunkApi.getState` */
+  state?: unknown
+  /** type for `thunkApi.dispatch` */
+  dispatch?: Dispatch
+  /** type of the `extra` argument for the thunk middleware, which will be passed in as `thunkApi.extra` */
+  extra?: unknown
+  /** type to be passed into `rejectWithValue`'s first argument that will end up on `rejectedAction.payload` */
+  rejectValue?: unknown
+  /** return type of the `serializeError` option callback */
+  serializedErrorType?: unknown
+  /** type to be returned from the `getPendingMeta` option callback & merged into `pendingAction.meta` */
+  pendingMeta?: unknown
+  /** type to be passed into the second argument of `fulfillWithValue` to finally be merged into `fulfilledAction.meta` */
+  fulfilledMeta?: unknown
+  /** type to be passed into the second argument of `rejectWithValue` to finally be merged into `rejectedAction.meta` */
+  rejectedMeta?: unknown
+}
+``` 
+</ details>
+
+<br />
+
+```ts
+const fetchUserById = createAsyncThunk<
+  ReturnData, // the return type
+  number, // First argument to the payload creator, here pointer to userId
+  {
+    extra: { jwt: string; }
+  }
+>("users/fetchById", async (userId, thunkApi) => {
+  const response = await fetch(`https://reqres.in/api/users/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${thunkApi.extra.jwt}`,
+    },
+  });
+  return (await response.json()) as ReturnType;
+});
+```
+
 
 <br />
 
@@ -212,6 +273,7 @@ const store = configureStore({
 
  
 <br />
+<br />
 
 #### Store enhancer 
 A store enhancer is a higher-order function that `composes` a store creator to return a new enhanced store creator. 
@@ -219,3 +281,5 @@ It is similar with middleware, and most likely you'll never write a store enhanc
 ```ts 
 type StoreEnhancer = (next: StoreCreator) => StoreCreator
 ```
+
+ 
