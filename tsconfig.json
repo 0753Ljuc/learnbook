@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "types": ["node", "webpack-env"],
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,

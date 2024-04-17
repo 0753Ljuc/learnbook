@@ -1,5 +1,5 @@
 
-import { Meta, Canvas } from "@storybook/blocks";                                                             
+import { Meta, Canvas } from "@storybook/blocks";                                                               
 import { SyntaxHighlighter } from "~/components/SyntaxHighlighter"
 import Alert from '@mui/material/Alert';
 import { PostsManager } from "~/examples/query/features/PostsManager";
@@ -14,11 +14,12 @@ import { _sourceCode as editableSourceCode } from "~/examples/query/features/Pos
 import { CustomCode } from "~/components/CustomCode"
 import { ReduxQueryFlowStepper } from "~/components/ReduxQueryFlowStepper"
 import { withWorker } from "~/HOC/withWorker"
+import { worker } from "~/examples/query/mocks/browser.ts";
 import { Diagram } from "./styled.components.tsx"
 import QABox from "~/components/QABox"
 
 
-<Meta title="Topic/Redux/Redux Query" />
+<Meta title="Redux/Redux Query" />
 
 
 ### RTK Query
@@ -95,7 +96,7 @@ by wrapping with the store provider, we render an Post component defined by belo
 
 **Render**:
 <Canvas>
-   {withWorker(withDevtools(PostsManager))()}
+   {withWorker(withDevtools(PostsManager),worker)()}
  </ Canvas>
 
 <Alert severity="info" icon={<></>}>
@@ -281,3 +282,4 @@ type UseMutationResult<T> = {
     * id = 3, ui show the query result of 3
   </ QABox.Answer>
 </ QABox>
+

@@ -1,0 +1,112 @@
+import { Meta, Canvas } from "@storybook/blocks";                                                                                       
+import Alert from '@mui/material/Alert';
+import { _sourceCode as todoSliceSourceCode } from "~/examples/testing/features/todos/todosSlice"
+import { _sourceCode as todoSliceTestSourceCode } from "~/examples/testing/features/todos/todosSlice.test.ts"
+import { _sourceCode as userStoreSourceCode } from "~/examples/testing/app/store"
+import { _sourceCode as userSliceSourceCode } from "~/examples/testing/features/user/userSlice"
+import { _sourceCode as userDisplaySourceCode, UserDisplay } from "~/examples/testing/features/user/UserDisplay"
+import { _sourceCode as userDisplayTestSourceCode } from "~/examples/testing/features/user/UserDisplay.test._sourceCode"
+import { _sourceCode as testUtilsSourceCode } from "~/examples/testing/utils/test-utils"
+
+import { CustomCode } from "~/components/CustomCode"
+import { withWorker } from "~/HOC/withWorker";
+import { worker } from "~/examples/testing/mocks/browser";
+import { withStore } from "~/examples/testing/app/withStoreProvider";
+import { SyntaxHighlighter } from "~/components/SyntaxHighlighter"
+
+<Meta title="Redux/Redux Testing" />
+
+### Redux Testing
+The guiding principles for testing Redux logic closely follow that of React Testing Library:
+<Alert severity="info" icon={<></>}>
+The more your tests resemble the way your software is used, the more confidence they can give you. - Kent C. Dodds
+</Alert>
+
+Our general advice for testing an app using Redux is:
+* Prefer writing integration tests with everything working together. 
+For a React app using Redux, render a `<Provider>` with a real store instance wrapping the components being tested.
+* If needed, use basic unit tests for pure functions such as particularly complex reducers or selectors.
+However, in many cases, these are just implementation details that are covered by integration tests instead.
+* Do not try to mock selector functions or the React-Redux hooks! 
+
+#### Testing Tools
+
+* Basic testing library: [Jest](https://jestjs.io/docs/getting-started)
+* React DOM testing library: [React Testing Library(RTL)](https://testing-library.com/docs/react-testing-library/intro)
+* API mocking library: [Mock Service Worker(MSW)](https://mswjs.io/docs/getting-started)
+
+
+
+#### Testing Reducer function
+
+Because most of the Redux code you write are functions, 
+and many of them are pure, they are easy to test without mocking. 
+Call the reducer with a specific input `state` and `action`, and assert that the result state matches expectations.
+
+**Example**: 
+
+<CustomCode language="ts">{todoSliceSourceCode}</CustomCode>
+
+can be tested like:
+
+<CustomCode language="ts">{todoSliceTestSourceCode}</CustomCode>
+
+#### Testing Redux Thunk
+We consider thunk behavior to be an implementation detail of the application, 
+and recommend that it be covered by testing the group of components (or whole app) using it, 
+rather than testing the thunk in isolation.
+
+#### Redux integration Testing
+Our recommendation is to mock async requests at the `fetch/xhr` level using tools like msw,
+
+By mocking requests at this level, 
+none of the thunk logic has to change in a test - the thunk still tries to make a "real" async request, 
+it just gets intercepted.
+
+**Write an Example App Code** which connected component and redux async logic:
+<SyntaxHighlighter schema={[
+  { "features/user/userDisplay.tsx": userDisplaySourceCode },
+  { "app/store.ts": userStoreSourceCode },
+  { "features/user/userSlice.ts": userSliceSourceCode },
+]} /> 
+
+
+it render like:
+<Canvas>
+{withWorker(withStore(UserDisplay),worker)()}
+</Canvas>
+This app involves thunks, reducers and selectors. 
+All of these can be tested by writing an integration test with the following in mind:
+* `idle` status, UI will render `initialState` "No user"
+* `loading` status, UI will render "Fetching user..."  
+* `complete` status, UI will render the exact `{userName}` which come from api call
+* `failure` status, UI will render "Fetching Fail!"
+
+**Setting Up a Reusable Test Render Function**: 
+
+Any Redux-connected components will need a React-Redux `<Provider>` component wrapped around them, 
+with a real Redux store set up and provided.
+
+A typical **custom render function** setup could look like this:
+
+<CustomCode language="tsx">{testUtilsSourceCode}</CustomCode> 
+
+With custom render function, 
+we able to write integration testing code connecting comopnents and redux logic by resuing `renderWithProviders`: 
+
+<CustomCode language="ts">{userDisplayTestSourceCode}</CustomCode> 
+
+After running the test, we can got 100% coverage for both `user/userSlice` and `user/UserDisplay` files.
+
+```shell 
+------------------|---------|----------|---------|---------|-------------------
+File              | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+------------------|---------|----------|---------|---------|-------------------
+All files         |     100 |      100 |     100 |     100 |                   
+ features/user    |     100 |      100 |     100 |     100 |                   
+  UserDisplay.tsx |     100 |      100 |     100 |     100 |                   
+  userSlice.ts    |     100 |      100 |     100 |     100 |                   
+ utils            |     100 |      100 |     100 |     100 |                   
+  test-utils.tsx  |     100 |      100 |     100 |     100 |                   
+------------------|---------|----------|---------|---------|-------------------
+```
