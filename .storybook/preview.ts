@@ -17,10 +17,11 @@ const preview: Preview = {
     options: {
       storySort: (a, b) => {
         const reduxTitleOrder = [
-          "Topic/Redux/Introduction",
-          "Topic/Redux/Redux Toolkit",
-          "Topic/Redux/Middleware",
-          "Topic/Redux/Redux Query",
+          "Redux/Introduction",
+          "Redux/Redux Toolkit",
+          "Redux/Middleware",
+          "Redux/Redux Query",
+          "Redux/Redux Testing",
         ];
         const orderA = reduxTitleOrder.indexOf(a.title);
         const orderB = reduxTitleOrder.indexOf(b.title);
@@ -28,10 +29,6 @@ const preview: Preview = {
           return 1;
         } else if (orderB === -1) {
           return -1;
-        } else if (orderA === -1 && orderB === -1) {
-          return a.id === b.id
-            ? 0
-            : a.id.localeCompare(b.id, undefined, { numeric: true });
         }
         return orderA - orderB;
       },

@@ -29,7 +29,7 @@ export const CustomCode = (props: CustomCodeProps) => {
         <ReactSyntaxHighlighter
           language={lang}
           style={nightOwl}
-          customStyle={{ margin: "0px", fontSize: "14px" }}
+          customStyle={{ margin: "0px", fontSize: "14px", maxHeight: "480px" }}
         >
           {children}
         </ReactSyntaxHighlighter>

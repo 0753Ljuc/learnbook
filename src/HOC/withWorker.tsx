@@ -1,9 +1,12 @@
 import { Button } from "@mui/material";
+import { SetupWorker } from "msw/lib/browser";
 import { PropsWithChildren, useEffect, useState } from "react";
-import { worker } from "~/examples/query/mocks/browser";
 import { HOC } from "~/types";
 
-const WorkerWrapper = ({ children }: PropsWithChildren) => {
+const WorkerWrapper = ({
+  children,
+  worker,
+}: PropsWithChildren<{ worker: SetupWorker }>) => {
   const [runWorker, setRunWorker] = useState(false);
 
   useEffect(() => {
@@ -30,16 +33,18 @@ const WorkerWrapper = ({ children }: PropsWithChildren) => {
   return (
     <div>
       {children}
-      <Button variant="contained" onClick={onClick}>
-        {runWorker ? "Worker Stop" : "Worker Start"}
-      </Button>
+      <div style={{ margin: "16px 0" }}>
+        <Button variant="contained" onClick={onClick}>
+          {runWorker ? "Worker Stop" : "Worker Start"}
+        </Button>
+      </div>
     </div>
   );
 };
 
-export const withWorker: HOC = (Wrapped) => {
+export const withWorker: HOC = (Wrapped, worker) => {
   return (props) => (
-    <WorkerWrapper>
+    <WorkerWrapper worker={worker as SetupWorker}>
       <Wrapped {...props} />
     </WorkerWrapper>
   );

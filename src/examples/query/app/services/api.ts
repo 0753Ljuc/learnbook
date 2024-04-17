@@ -66,6 +66,7 @@ export const _sourceCode = `export const api = createApi({
 
     getPosts: build.query<Post[], void>({
       query: () => ({ url: "posts" }),
+      providesTags: ["Posts"],
     }),
 
     addPost: build.mutation<Post, Pick<Post, "name">>({

@@ -1,5 +1,6 @@
 import { ComponentType } from "react";
 
-export type HOC<P extends object = {}> = (
-  wrappedComp: ComponentType<P>
+export type HOC<P extends object = object> = (
+  wrappedComp: ComponentType<P>,
+  ...args: unknown[]
 ) => ComponentType<P>;
